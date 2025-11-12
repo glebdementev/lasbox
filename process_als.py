@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from enum import Enum
 from pathlib import Path
@@ -8,6 +9,9 @@ from typing import Tuple
 import laspy
 import numpy as np
 import torch
+
+# Model downloading
+from download_models import ensure_model_exists
 
 # Filtering
 from modules.filter.componentFilter import filterPoints
@@ -41,11 +45,9 @@ class RunConfig:
 
 
 def get_default_models_dir() -> Path:
-    if os.name == "nt":
-        appdata_dir = Path(os.getenv("LOCALAPPDATA"))
-    else:
-        appdata_dir = Path.home() / ".local" / "share"
-    model_dir = appdata_dir / "CloudCompare" / "TreeAIBox" / "models"
+    """Get models directory relative to the script location."""
+    repo_dir = Path(__file__).parent
+    model_dir = repo_dir / "models"
     model_dir.mkdir(parents=True, exist_ok=True)
     return model_dir
 
@@ -87,12 +89,22 @@ def resolve_paths(models_dir: Path) -> Tuple[Path, Path, Path, Path, Path, Path]
     treeloc_model = models_dir / f"{treeloc_name}.pth"
     treeoff_model = models_dir / f"{treeoff_name}.pth"
 
-    assert filter_config.exists()
-    assert filter_model.exists()
-    assert treeloc_config.exists()
-    assert treeoff_config.exists()
-    assert treeloc_model.exists()
-    assert treeoff_model.exists()
+    # Check config files exist (these should be in the repo)
+    if not filter_config.exists():
+        raise FileNotFoundError(f"Filter config not found: {filter_config}")
+    if not treeloc_config.exists():
+        raise FileNotFoundError(f"TreeLoc config not found: {treeloc_config}")
+    if not treeoff_config.exists():
+        raise FileNotFoundError(f"TreeOff config not found: {treeoff_config}")
+
+    # Ensure model files exist, downloading if necessary
+    print(f"\n=== Checking model files ===")
+    if not ensure_model_exists(filter_name, filter_model):
+        raise FileNotFoundError(f"Failed to obtain filter model: {filter_model}")
+    if not ensure_model_exists(treeloc_name, treeloc_model):
+        raise FileNotFoundError(f"Failed to obtain TreeLoc model: {treeloc_model}")
+    if not ensure_model_exists(treeoff_name, treeoff_model):
+        raise FileNotFoundError(f"Failed to obtain TreeOff model: {treeoff_model}")
 
     return filter_config, filter_model, treeloc_config, treeloc_model, treeoff_config, treeoff_model
 
