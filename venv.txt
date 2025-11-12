@@ -1,0 +1,19 @@
+# Commands to set up virtual environment for lastreeiso
+
+# 1. Create virtual environment
+python -m venv .venv
+
+# 2. Activate virtual environment (PowerShell)
+.venv\Scripts\Activate.ps1
+
+# 3. Install requirements
+pip install -r requirements.txt
+
+# Alternative: All in one command (create venv, activate, and install)
+python -m venv .venv; .venv\Scripts\Activate.ps1; pip install -r PythonCpp\requirements.txt
+
+# To run the script after setup:
+# .venv\Scripts\python.exe PythonCpp\treeiso.py
+# OR after activation:
+# python PythonCpp\treeiso.py
+

@@ -1,0 +1,9 @@
+requests 
+numpy_indexed 
+timm 
+numpy_groupies 
+cut_pursuit_py 
+circle_fit 
+scikit-learn 
+scikit-image
+laspy

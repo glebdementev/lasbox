@@ -6,7 +6,7 @@ from typing import Optional
 import laspy
 import numpy as np
 import torch
-from pydantic import BaseModel
+from dataclasses import dataclass
 
 # Pipeline modules (TreeisoNet)
 from modules.treeisonet.treeLoc import treeLoc as treeLoc_infer
@@ -19,7 +19,8 @@ class ReclamationModels(Enum):
     TREEOff = "treeisonet_als_reclamation_treeoff_esegformer3D_128_10cm(GPU4GB)"
 
 
-class RunConfig(BaseModel):
+@dataclass
+class RunConfig:
     models_dir: Path
     use_gpu: bool
     cutoff_thresh: float
@@ -90,9 +91,8 @@ def write_csv(path: Path, data: np.ndarray, header: Optional[str]) -> None:
 
 
 def main() -> None:
-    import sys
-    assert len(sys.argv) == 2
-    las_path = Path(sys.argv[1])
+    las_path_input = input("Enter path to LAS file: ").strip()
+    las_path = Path(las_path_input)
     assert las_path.exists()
 
     cfg = default_run_config()
