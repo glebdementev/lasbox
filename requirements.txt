@@ -7,3 +7,7 @@ circle_fit
 scikit-learn 
 scikit-image
 laspy
+lazrs
+# Install PyTorch with CUDA support for GPU acceleration:
+# For CUDA 12.1: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# For CPU only: pip install torch

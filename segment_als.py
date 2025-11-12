@@ -1,4 +1,5 @@
 import os
+import time
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -43,9 +44,15 @@ def get_default_models_dir() -> Path:
 
 
 def default_run_config() -> RunConfig:
+    use_gpu = bool(torch.cuda.is_available())
+    if use_gpu:
+        device_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "Unknown"
+        print(f"Using CUDA device: {device_name}")
+    else:
+        print("CUDA not available, using CPU")
     return RunConfig(
         models_dir=get_default_models_dir(),
-        use_gpu=bool(torch.cuda.is_available()),
+        use_gpu=use_gpu,
         cutoff_thresh=0.0,
         conf_thresh=0.6,
         min_rad=0.2,
@@ -95,16 +102,30 @@ def main() -> None:
     las_path = Path(las_path_input)
     assert las_path.exists()
 
+    print("\n=== Initializing configuration ===")
     cfg = default_run_config()
+    print(f"Models directory: {cfg.models_dir}")
+    
+    print("\n=== Resolving model paths ===")
     treeloc_config, treeloc_model, treeoff_config, treeoff_model = resolve_paths(cfg.models_dir)
+    print(f"TreeLoc config: {treeloc_config}")
+    print(f"TreeLoc model: {treeloc_model}")
+    print(f"TreeOff config: {treeoff_config}")
+    print(f"TreeOff model: {treeoff_model}")
 
+    print("\n=== Reading LAS file ===")
+    start_time = time.time()
     pcd = read_las_xyz(las_path)
     n_pts = int(pcd.shape[0])
     assert n_pts > 0
+    read_time = time.time() - start_time
+    print(f"Loaded {n_pts:,} points in {read_time:.2f} seconds")
 
     custom_resolution = np.array([cfg.res_xy, cfg.res_xy, cfg.res_z], dtype=np.float32)
+    print(f"Resolution: XY={cfg.res_xy}m, Z={cfg.res_z}m")
 
-    # 1) TreeLoc inference
+    print("\n=== Step 1: TreeLoc inference ===")
+    start_time = time.time()
     preds_conf_rad = treeLoc_infer(
         str(treeloc_config),
         pcd,
@@ -114,14 +135,22 @@ def main() -> None:
         cutoff_thresh=cfg.cutoff_thresh,
         custom_resolution=custom_resolution,
     )
+    treeloc_time = time.time() - start_time
+    print(f"TreeLoc inference completed in {treeloc_time:.2f} seconds")
     assert preds_conf_rad is not None
     assert preds_conf_rad.shape[0] == n_pts
 
+    print("\n=== Filtering predictions ===")
+    start_time = time.time()
     conf_col = int(preds_conf_rad.shape[1] - 2)
     mask = preds_conf_rad[:, conf_col] > cfg.conf_thresh
     filtered = preds_conf_rad[mask]
+    filter_time = time.time() - start_time
+    print(f"Filtered to {len(filtered):,} points (confidence > {cfg.conf_thresh}) in {filter_time:.2f} seconds")
     assert filtered.size > 0
 
+    print("\n=== Peak extraction ===")
+    start_time = time.time()
     treeloc_tops = postPeakExtraction(
         filtered,
         K=5,
@@ -129,10 +158,13 @@ def main() -> None:
         min_rad=cfg.min_rad,
         nms_thresh=cfg.nms_thresh,
     )
+    peak_time = time.time() - start_time
+    print(f"Extracted {len(treeloc_tops):,} tree tops in {peak_time:.2f} seconds")
     assert treeloc_tops is not None
     assert treeloc_tops.ndim == 2 and treeloc_tops.shape[1] >= 3
 
-    # 2) TreeOff inference
+    print("\n=== Step 2: TreeOff inference ===")
+    start_time = time.time()
     labels = treeOff_infer(
         str(treeoff_config),
         pcd,
@@ -141,10 +173,13 @@ def main() -> None:
         use_cuda=cfg.use_gpu,
         custom_resolution=custom_resolution,
     )
+    treeoff_time = time.time() - start_time
+    print(f"TreeOff inference completed in {treeoff_time:.2f} seconds")
     assert labels is not None
     assert int(labels.shape[0]) == n_pts
 
-    # Save results into a LAS with an extra dimension "pred_itc"
+    print("\n=== Saving results ===")
+    start_time = time.time()
     las = laspy.read(str(las_path))
     preds = labels.astype(np.int32)
     if len(preds) == len(las.x):
@@ -153,7 +188,18 @@ def main() -> None:
         las.pred_itc = preds
     out_path = las_path.with_name(f"{las_path.stem}_itc.laz")
     las.write(str(out_path))
-    print(str(out_path))
+    save_time = time.time() - start_time
+    print(f"Results saved to: {out_path}")
+    print(f"Save completed in {save_time:.2f} seconds")
+    
+    print("\n=== Summary ===")
+    print(f"Total processing time: {read_time + treeloc_time + filter_time + peak_time + treeoff_time + save_time:.2f} seconds")
+    print(f"  - Reading LAS: {read_time:.2f}s")
+    print(f"  - TreeLoc inference: {treeloc_time:.2f}s")
+    print(f"  - Filtering: {filter_time:.2f}s")
+    print(f"  - Peak extraction: {peak_time:.2f}s")
+    print(f"  - TreeOff inference: {treeoff_time:.2f}s")
+    print(f"  - Saving: {save_time:.2f}s")
 
 
 if __name__ == "__main__":
