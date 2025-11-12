@@ -54,12 +54,13 @@ def default_run_config() -> RunConfig:
         models_dir=get_default_models_dir(),
         use_gpu=use_gpu,
         cutoff_thresh=0.0,
-        conf_thresh=0.6,
+        conf_thresh=0.3,
         min_rad=0.2,
-        max_gap=2.0,
-        nms_thresh=1.0,
-        res_xy=0.10,
-        res_z=0.10,
+        max_gap=0.3,
+        nms_thresh=0.5,
+        # Match TreeAIBox default (UI sliders at 0 => use model config)
+        res_xy=0.0,
+        res_z=0.0,
     )
 
 
