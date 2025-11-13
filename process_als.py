@@ -23,7 +23,7 @@ from modules.treeisonet.treeOff import treeOff as treeOff_infer
 
 
 class FilterModels(Enum):
-    TREEFilter = "treefiltering_als_esegformer3D_128_15cm(GPU3GB)"
+    TREEFilter = "treefiltering_uav_esegformer3D_128_12cm(GPU3GB)"
 
 
 class ReclamationModels(Enum):
