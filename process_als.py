@@ -213,6 +213,15 @@ def main() -> None:
     assert treeloc_tops is not None
     assert treeloc_tops.ndim == 2 and treeloc_tops.shape[1] >= 3
 
+    print("\n=== Filtering tree tops by height (>= 8m) ===")
+    start_time = time.time()
+    height_thresh = 8.0  # meters
+    height_mask = treeloc_tops[:, 2] >= height_thresh
+    treeloc_tops = treeloc_tops[height_mask]
+    height_filter_time = time.time() - start_time
+    print(f"Filtered to {len(treeloc_tops):,} tree tops (height >= {height_thresh}m) in {height_filter_time:.2f} seconds")
+    assert len(treeloc_tops) > 0, f"No tree tops with height >= {height_thresh}m"
+
     print("\n=== Step 3: TreeOff inference (on filtered points) ===")
     start_time = time.time()
     labels = treeOff_infer(
@@ -251,13 +260,14 @@ def main() -> None:
     print(f"Save completed in {save_time:.2f} seconds")
 
     print("\n=== Summary ===")
-    total_time = read_time + filter_time + treeloc_time + conf_filter_time + peak_time + treeoff_time + save_time
+    total_time = read_time + filter_time + treeloc_time + conf_filter_time + peak_time + height_filter_time + treeoff_time + save_time
     print(f"Total processing time: {total_time:.2f} seconds")
     print(f"  - Reading LAS: {read_time:.2f}s")
     print(f"  - TreeFiltering: {filter_time:.2f}s")
     print(f"  - TreeLoc inference: {treeloc_time:.2f}s")
     print(f"  - Confidence filtering: {conf_filter_time:.2f}s")
     print(f"  - Peak extraction: {peak_time:.2f}s")
+    print(f"  - Height filtering: {height_filter_time:.2f}s")
     print(f"  - TreeOff inference: {treeoff_time:.2f}s")
     print(f"  - Saving: {save_time:.2f}s")
 
